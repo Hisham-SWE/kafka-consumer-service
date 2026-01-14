@@ -1,98 +1,85 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Order Processing Microservices
+This project demonstrates an event-driven architecture using **NestJS**, **Kafka**, and **WebSockets**. It consists of two main services (Producer & Consumer) communicating asynchronously via a Kafka message queue.
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## 🏗 System Architecture
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+1.  **ws-service (Producer)**:
+    *   A WebSocket Gateway (NestJS).
+    *   Receives `placeOrder` events from clients (e.g., Postman, Frontend).
+    *   Produces an `ORDER_PLACED` event to the Kafka topic `order-placement`.
+2.  **consumer-service (Consumer)**:
+    *   A NestJS background service.
+    *   Subscribes to the `order-placement` Kafka topic.
+    *   Processes orders (Validation -> Payment -> Shipping) with simulated delays.
 
-## Description
+## 🚀 Prerequisites
+-   **Node.js** (v16+)
+-   **Docker Desktop** (Running)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🛠️ Project Setup
 
-## Project setup
+### 1. Start Infrastructure (Kafka )
+Since there is no `docker-compose.yml`, run the following commands manually in PowerShell or Command Prompt to start the necessary containers.
 
+**Create Network:**
 ```bash
-$ npm install
+docker network create mq-net
 ```
 
-## Compile and run the project
 
+**Run Kafka:**
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+docker run -d --name kafka --network mq-net -p 9092:9092 -e KAFKA_BROKER_ID=1 -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT --restart unless-stopped confluentinc/cp-kafka:latest
 ```
 
-## Run tests
+### 2. Start Services
+Run each service in a separate terminal window.
 
+**Terminal 1: WebSocket Service (Producer)**
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cd ws-service
+npm install
+npm run start:dev
 ```
+*Running on: http://localhost:3000*
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+**Terminal 2: Consumer Service**
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+cd consumer-service
+npm install
+# Port is set to 3001 in code to avoid conflicts
+npm run start:dev
 ```
+*Running on: http://localhost:3001*
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 🧪 How to Test
 
-## Resources
+1.  Open a WebSocket Client (e.g., Postman or [PieSocket](https://www.piesocket.com/websocket-tester)).
+2.  Connect to: `ws://localhost:3000`
+3.  **Emit Event**: `placeOrder`
+4.  **Payload (JSON)**:
+    ```json
+    {
+      "orderId": "#101",
+      "item": "Mechanical Keyboard",
+      "price": 150
+    }
+    ```
+5.  **Check Consumer Logs**:
+    Switch to the `consumer-service` terminal to see the processing flow:
+    ```
+    📦 Processing Order #101...
+    🔍 Validating items for Order #101...
+    💳 Charging customer for Order #101...
+    🚚 Shipping Order #101...
+    ✅ Order #101 processed successfully!
+    ```
 
-Check out a few resources that may come in handy when working with NestJS:
+## 📂 Project Structure
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### ws-service
+-   `src/oreder-placement/`: Contains the WebSocket gateway logic.
+-   `src/kafka/`: Kafka producer configuration.
 
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### consumer-service
+-   `src/kafka/`: Kafka consumer handling logic (`processOrder` flow).
