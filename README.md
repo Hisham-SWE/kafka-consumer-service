@@ -7,6 +7,8 @@ This project demonstrates an event-driven architecture using **NestJS**, **Kafka
     *   A WebSocket Gateway (NestJS).
     *   Receives `placeOrder` events from clients (e.g., Postman, Frontend).
     *   Produces an `ORDER_PLACED` event to the Kafka topic `order-placement`.
+    *   [GitHub Repo Link](https://github.com/Hisham-SWE/kafka-producer-websocket-service)
+
 2.  **consumer-service (Consumer)**:
     *   A NestJS background service.
     *   Subscribes to the `order-placement` Kafka topic.
